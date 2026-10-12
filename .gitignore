@@ -1,0 +1,33 @@
+# =====================================================================
+# Git Ignore: Machine Learning Project
+# =====================================================================
+
+# 1. Thư mục dữ liệu ảnh thô & Dataset (Quá nặng, tự động tải qua code)
+Raw/
+data/
+
+# 2. Trọng số mô hình & Checkpoints (Tránh đẩy file nhị phân lớn lên Git)
+*.pt
+*.pth
+*.onnx
+*.weights
+checkpoints/
+
+# 3. Môi trường ảo & Cache của Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# 4. Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+.virtual_documents/
+
+# 5. Cấu hình IDE & Hệ điều hành
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
