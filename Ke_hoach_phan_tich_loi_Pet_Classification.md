@@ -574,12 +574,12 @@ print(json.dumps(baseline_results, indent=2))
 > [!IMPORTANT]
 > **TRIẾT LÝ PHÂN TÍCH LỖI EYEBALL DEV CỦA ANDREW NG:**
 > 1. **Tại sao lấy mẫu tối đa 100 ảnh sai?**  
->    Con số 100 mẫu sai là con số chuẩn mực trong thực hành ML. Nó đủ lớn để đại diện thống kê cho phân phối các loại lỗi (sai số thống kê khoảng $\pm 5\%$), nhưng đủ nhỏ để con người có thể trực tiếp quan sát bằng mắt trong vòng 10–15 phút mà không bị quá tải nhận thức.
+>    Con số 100 mẫu sai là con số chuẩn mực trong thực hành ML. Nó đủ lớn để đại diện thống kê cho phân phối các loại lỗi (sai số thống kê khoảng $\pm 5$ điểm %), nhưng đủ nhỏ để con người có thể trực tiếp quan sát bằng mắt trong vòng 10–15 phút mà không bị quá tải nhận thức.
 > 2. **Hệ thống nhãn lỗi kép (Dual-Tagging System):**
 >    - **Nhãn tự động (tags_auto):** Đo lường bằng các thuật toán xử lý ảnh khách quan:
 >      - `mờ`: Tính phương sai Laplacian ($\sigma^2_{\Delta}$). Phép toán này phát hiện cường độ cạnh (edge gradient). Ảnh sắc nét có nhiều cạnh dốc $\rightarrow$ phương sai cao; ảnh bị nhòe/mờ chuyển động có biên cạnh phẳng $\rightarrow$ phương sai thấp (< 100.0).
 >      - `tối`: Giá trị xám trung bình $< 60.0$ (thang 0–255), nhận diện ảnh chụp ban đêm hoặc ngược sáng.
->      - `vật thể nhỏ`: Tỷ lệ diện tích Bbox so với diện tích toàn ảnh $< 20\%$. Khi ảnh con vật quá nhỏ, khi resize về $224 \times 224$, đặc trưng khuôn mặt bị biến dạng nặng.
+>      - `vật thể nhỏ`: Tỷ lệ diện tích Bbox so với diện tích toàn ảnh $< 20 \text{ %}$. Khi ảnh con vật quá nhỏ, khi resize về $224 \times 224$, đặc trưng khuôn mặt bị biến dạng nặng.
 >    - **Nhãn thủ công (tags_manual):** Đánh giá ngữ nghĩa bằng mắt người:
 >      - `giống tương tự`: Model nhầm giữa 2 giống họ hàng gần (ví dụ: Bengal vs Egyptian Mau, Pug vs French Bulldog).
 >      - `che khuất`: Bị chăn, rọ mõm, cành cây hoặc người bế che mất đặc trưng nhận diện.
@@ -753,15 +753,23 @@ else:
 > **Thuật toán quy thuộc toán học:**
 > Xét tập các mẫu bị Pipeline (Model Y) đoán sai trên Eyeball Dev: $E_Y = \{i \mid \hat{y}_{Y, i} \neq y_i\}$.
 > - **Lỗi thuộc Bước A:** Số mẫu mà Model Y sai nhưng Model O (Oracle) lại đoán ĐÚNG:  
->   $$E_A = \{i \in E_Y \mid \hat{y}_{O, i} = y_i\}$$  
+>
+> $$
+> E_A = \{i \in E_Y \mid \hat{y}_{O, i} = y_i\}
+> $$
+>
 >   *(Chứng minh: Khi cấp Bbox hoàn hảo, hệ thống đoán đúng $\rightarrow$ Suy ra lỗi ban đầu là do Bbox của Bước A bị sai).*
 > - **Lỗi thuộc Bước B:** Số mẫu mà cả Model Y lẫn Model O đều đoán SAI:  
->   $$E_B = \{i \in E_Y \mid \hat{y}_{O, i} \neq y_i\}$$  
+>
+> $$
+> E_B = \{i \in E_Y \mid \hat{y}_{O, i} \neq y_i\}
+> $$
+>
 >   *(Chứng minh: Ngay cả khi cấp Bbox hoàn hảo, mô hình vẫn đoán sai $\rightarrow$ Lỗi thuần túy thuộc năng lực phân loại của Bước B).*
 >
 > **Giá trị định hướng hành động (Actionable Insight):**
-> - Nếu $\text{Tỷ lệ } E_A > 35\%$: Nút thắt cổ chai (bottleneck) nằm ở Detector! Việc bỏ công sức tuning ResNet18 sẽ ít mang lại hiệu quả; ta bắt buộc phải tối ưu hóa Bước A trước.
-> - Nếu $\text{Tỷ lệ } E_B > 65\%$: Detector đã làm rất tốt; nút thắt nằm ở việc phân biệt đặc trưng giống loài của Bước B.
+> - Nếu $\text{Ratio}(E_A) > 0.35$: Nút thắt cổ chai (bottleneck) nằm ở Detector! Việc bỏ công sức tuning ResNet18 sẽ ít mang lại hiệu quả; ta bắt buộc phải tối ưu hóa Bước A trước.
+> - Nếu $\text{Ratio}(E_B) > 0.65$: Detector đã làm rất tốt; nút thắt nằm ở việc phân biệt đặc trưng giống loài của Bước B.
 
 **Mã nguồn chuẩn cho Notebook (Kèm Chú thích Tiếng Việt Chi tiết):**
 ```python
@@ -827,11 +835,22 @@ else:
 > 
 > **Công thức toán học:**
 > 1. Tính tỷ lệ của nhóm lỗi $T$ trong tập 100 mẫu phân tích:
->    $$\text{Tỷ lệ trong mẫu}(T) = \frac{\text{Số lượng mẫu có nhãn } T}{100}$$
+>
+> $$
+> \text{Sample Ratio}(T) = \frac{\text{Count}(T)}{100}
+> $$
+>
 > 2. Ước lượng tổng số ca mắc lỗi $T$ trên toàn bộ tập Eyeball Dev ($E_Y$ lỗi):
->    $$\text{Estimated Errors}(T) = \text{Tỷ lệ trong mẫu}(T) \times E_Y$$
+>
+> $$
+> \text{Estimated Errors}(T) = \text{Sample Ratio}(T) \times E_Y
+> $$
+>
 > 3. Tính trần cải thiện độ chính xác (Accuracy Ceiling Gain %):
->    $$\text{Ceiling Gain}(T) = \frac{\text{Estimated Errors}(T)}{N_{\text{Eyeball}} (300)} \times 100\%$$
+>
+> $$
+> \text{Ceiling Gain}(T) = \frac{\text{Estimated Errors}(T)}{N_{\text{Eyeball}} (300)} \times 100
+> $$
 >
 > **Lưu ý quan trọng về tính Đa nhãn (Multi-label):**
 > Một ảnh có thể đồng thời vừa bị "mờ" vừa bị "che khuất". Do đó, các nhóm lỗi không loại trừ lẫn nhau (non-mutually exclusive), và tổng các Ceiling Gain có thể lớn hơn tổng tỷ lệ lỗi của toàn bộ mô hình.
@@ -986,9 +1005,13 @@ print(f"- Eyeball Dev Macro F1:  {baseline_results['yolo_eyeball']['macro_f1']:.
 >    Vì kỹ sư đã trực tiếp soi bằng mắt 100 mẫu lỗi của Eyeball Dev và thiết kế ra các bộ augmentation/margin để sửa các lỗi đó, não bộ con người và mô hình có nguy cơ cao bị "học vẹt" hoặc "quá khớp" vào tập Eyeball Dev.
 > 2. **Tập Blackbox Dev làm trọng tài khách quan:**  
 >    Tập Blackbox Dev (507 mẫu) là tập dữ liệu **tuyệt đối không bao giờ được soi bằng mắt**. Do đó, nó đóng vai trò tấm gương phản chiếu trung thực nhất:
->    $$\Delta_{\text{Overfit}} = \text{Accuracy}(\text{Eyeball Dev}) - \text{Accuracy}(\text{Blackbox Dev})$$
->    - Nếu $\Delta_{\text{Overfit}} > 5.0\%$: Dấu hiệu cảnh báo mô hình đang bị overfit vào Eyeball Dev (kết quả tăng ảo do ta điều chỉnh quá khớp với tập soi lỗi).
->    - Nếu $\Delta_{\text{Overfit}} \le 5.0\%$: Mô hình có năng lực tổng quát hóa xuất sắc.
+>
+> $$
+> \Delta_{\text{Overfit}} = \text{Accuracy}(\text{Eyeball Dev}) - \text{Accuracy}(\text{Blackbox Dev})
+> $$
+>
+>    - Nếu $\Delta_{\text{Overfit}} > 0.05$: Dấu hiệu cảnh báo mô hình đang bị overfit vào Eyeball Dev (kết quả tăng ảo do ta điều chỉnh quá khớp với tập soi lỗi).
+>    - Nếu $\Delta_{\text{Overfit}} \le 0.05$: Mô hình có năng lực tổng quát hóa xuất sắc.
 > 3. **Nguyên tắc Niêm phong Tập Test:**  
 >    Tập Test (3.669 ảnh) chỉ được mở niêm phong đúng 1 lần duy nhất để báo cáo kết quả cuối cùng. Tuyệt đối không dùng Test để chọn checkpoint hay điều chỉnh siêu tham số!
 

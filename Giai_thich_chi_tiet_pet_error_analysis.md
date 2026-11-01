@@ -17,9 +17,9 @@
 | **Cell 12** | **Task 5:** Huấn luyện Baseline | Train Model O vs Model Y | Component Ablation: $\Delta_{\text{Pipeline Loss}} = \text{Score}(O) - \text{Score}(Y)$ | Đo lường tổn thất hiệu năng do Bước A gây ra |
 | **Cell 14** | **Task 6:** Bảng phân tích lỗi Eyeball | `cv2.Laplacian().var()`, `ipywidgets` | Toán tử vi phân bậc 2 Laplace $\nabla^2 I$, Phương sai độ nhòe $\text{Var}(\Delta I)$ | Tự động gắn nhãn mờ, tối, nhỏ + Widget tương tác 100 ảnh sai |
 | **Cell 16** | **Task 7:** Phân bổ lỗi Pipeline | `fixed_by_oracle`, `still_wrong` | Đại số tập hợp: $E_A = E_Y \setminus E_O$, $E_B = E_Y \cap E_O$ | Định lượng tỷ lệ lỗi do Bước A (Detector) hay Bước B (Classifier) |
-| **Cell 18** | **Task 8:** Phân tích trần cải thiện | `accuracy_ceiling_gain` | Ước lượng không chệch: $\text{Ceiling} = \frac{\text{Est}(T)}{N_{\text{dev}}} \times 100\%$ | Tính cận trên tăng Accuracy (%) nếu giải quyết triệt để từng nhóm lỗi |
+| **Cell 18** | **Task 8:** Phân tích trần cải thiện | `accuracy_ceiling_gain` | Ước lượng không chệch: $\text{Ceiling} = \frac{\text{Est}(T)}{N_{\text{dev}}} \times 100$ (%) | Tính cận trên tăng Accuracy (%) nếu giải quyết triệt để từng nhóm lỗi |
 | **Cell 20** | **Task 9:** Cải tiến có mục tiêu v2 | `GaussianBlur`, `ColorJitter`, `RandomErasing` | Phân phối chuẩn 2 chiều Gauss $G(x,y;\sigma)$, Biến đổi không gian màu | Tăng cường dữ liệu đặc trị lỗi mờ, tối, che khuất; mở rộng margin=0.15 |
-| **Cell 22** | **Task 10:** Kiểm tra Overfitting & Test | `gap_v2 = Acc_{\text{eye}} - Acc_{\text{black}}` | Khoảng cách tổng quát hóa (Generalization Gap $\le 5\%$) | Kiểm tra hiện tượng Human Overfitting và mở niêm phong Test đúng 1 lần |
+| **Cell 22** | **Task 10:** Kiểm tra Overfitting & Test | `\Delta_{\text{Overfit}} = \text{Acc}_{\text{eye}} - \text{Acc}_{\text{black}}` | Khoảng cách tổng quát hóa ($\text{Gap} \le 0.05$, tức $\le 5$%) | Kiểm tra hiện tượng Human Overfitting và mở niêm phong Test đúng 1 lần |
 | **Cell 24** | **Task 11:** Báo cáo & Trực quan | `confusion_matrix`, `np.fill_diagonal(cm, 0)` | Ma trận nhầm lẫn $C_{i,j}$, Triệt tiêu đường chéo chính | Vẽ đồ thị training curve, trần cải thiện và cô lập Top 5 cặp giống dễ nhầm nhất |
 | **Cell 26** | **Task 12:** Model v3 Champion | ResNet50, Ảnh 320x320, `scale=(0.8, 1.0)` | Mở rộng diện tích pixel $2.04\times$, Không gian embedding 2048 chiều | Đột phá phân loại tinh (Fine-Grained) cho các giống tương tự nhau |
 
@@ -109,15 +109,27 @@ idx_train, idx_blackbox = train_test_split(
 #### Phân tầng xác suất (Stratified Sampling)
 Giả sử tập dữ liệu có $C = 37$ lớp. Gọi $N_c$ là số lượng mẫu của giống loài $c$, tổng số mẫu là $N = \sum_{c=1}^C N_c$.  
 Xác suất tiên nghiệm (Prior probability) của giống $c$ trong tập dữ liệu gốc là:
-$$P(Y = c) = \frac{N_c}{N}$$
+
+$$
+P(Y = c) = \frac{N_c}{N}
+$$
+
 Nếu lấy mẫu ngẫu nhiên đơn thuần (Simple Random Sampling), các giống hiếm có thể bị rơi rớt, dẫn đến một số lớp có $0$ mẫu trong tập kiểm tra.  
 Phép chia phân tầng (`stratify`) ràng buộc số lượng mẫu của mỗi giống $c$ trong tập con kích thước $M$ phải thỏa mãn:
-$$M_c = \text{round}\left(M \times P(Y = c)\right) = \text{round}\left(M \times \frac{N_c}{N}\right)$$
+
+$$
+M_c = \text{round}\left(M \times P(Y = c)\right) = \text{round}\left(M \times \frac{N_c}{N}\right)
+$$
+
 - **Ví dụ số thực tế:**  
-  Tập `trainval` có 3.680 ảnh cho 37 lớp (bình quân khoảng $N_c \approx 99.45$ ảnh/lớp, tức $P(Y=c) \approx \frac{1}{37} \approx 2.70\%$).  
-  Khi tách tập Eyeball Dev gồm $M = 300$ ảnh, mỗi giống loài sẽ được chia đều chính xác:
-  $$M_c = \text{round}\left(300 \times \frac{1}{37}\right) = 8 \text{ ảnh/giống}$$
-  Nhờ đó, không một giống nào bị bỏ rơi hay thiên vị trong quá trình phân tích lỗi!
+  Tập `trainval` có 3.680 ảnh cho 37 lớp (bình quân khoảng $N_c \approx 99.45$ ảnh/lớp, tức $P(Y=c) \approx \frac{1}{37} \approx 0.027$, tương đương 2.70%).  
+  Khi tách tập Eyeball Dev gồm $M = 300$ ảnh, số lượng mẫu của mỗi giống loài được chia đều chính xác:
+
+$$
+M_c = \text{round}\left(300 \times \frac{1}{37}\right) = 8
+$$
+
+  (Tức mỗi giống nhận đều đặn chính xác **8 ảnh/giống**). Nhờ đó, không một giống nào bị bỏ rơi hay thiên vị trong quá trình phân tích lỗi!
 
 ### 4. Input & Output của Cell
 - **Input:** Dataset `OxfordIIITPet` từ torchvision.
@@ -172,7 +184,10 @@ $$x_1' = \max(0, x_1 - \alpha \cdot w), \quad y_1' = \max(0, y_1 - \alpha \cdot 
 $$x_2' = \min(W, x_2 + \alpha \cdot w), \quad y_2' = \min(H, y_2 + \alpha \cdot h)$$
 - **Diện tích mới của vùng cắt:**
   $$w' = (1 + 2\alpha)w = 1.2 w, \quad h' = (1 + 2\alpha)h = 1.2 h$$
-  $$\text{Area}' = w' \times h' = 1.44 \times \text{Area}_{\text{gốc}}$$
+  $$
+\text{Area}' = w' \times h' = 1.44 \times \text{Area}_{\text{orig}}
+$$
+(Trong đó $\text{Area}_{\text{orig}}$ là diện tích hộp bao gốc ban đầu).
 - **Ý nghĩa thực tế:** Vùng ảnh sau khi dãn lề 10% sẽ có diện tích tăng thêm **44%**, cung cấp đủ không gian đệm xung quanh để giữ nguyên vẹn chóp tai, bờm lông và râu con vật.
 
 ### 4. Input & Output của Cell
@@ -225,8 +240,9 @@ $$\text{Area}(A \cap B) = \max(0, x_{\text{inter\_right}} - x_{\text{inter\_left
   - $\text{IoU} = 1.0$: Khớp hoàn hảo tuyệt đối.
   - $\text{IoU} \ge 0.70$: Phát hiện rất tốt, bao trọn con vật.
   - $\text{IoU} < 0.50$: Phát hiện lệch hoặc cắt cụt một phần cơ thể.
-- **Kết quả thực nghiệm trên Eyeball Dev:**
-  $$\text{Mean IoU} \approx 0.78 - 0.82, \quad \text{Detection Rate} > 95\%$$
+- **Hiệu năng thực nghiệm trên Eyeball Dev:**
+  - $\text{Mean IoU} \approx 0.78 - 0.82$
+  - Tỷ lệ phát hiện (Detection Rate): > 95%
   Chứng minh YOLOv8n hoạt động rất ổn định làm đầu vào cho Bước B.
 
 ### 4. Input & Output của Cell
@@ -303,7 +319,9 @@ Với mỗi giống loài $c \in \{1, \dots, 37\}$:
 $$\text{Precision}_c = \frac{TP_c}{TP_c + FP_c}, \quad \text{Recall}_c = \frac{TP_c}{TP_c + FN_c}$$
 $$F1_c = \frac{2 \times \text{Precision}_c \times \text{Recall}_c}{\text{Precision}_c + \text{Recall}_c} = \frac{2 TP_c}{2 TP_c + FP_c + FN_c}$$
 Điểm **Macro F1** là trung bình số học không trọng số của 37 lớp:
-$$\text{Macro F1} = \frac{1}{37} \sum_{c=1}^{37} F1_c$$
+$$
+\text{Macro F1} = \frac{1}{37} \sum_{c=1}^{37} F1_c
+$$
 - **Ý nghĩa toán học:** Khác với Micro F1 hay Accuracy (vốn bị lấn át bởi các lớp đông mẫu), Macro F1 đánh giá công bằng tuyệt đối giữa tất cả 37 giống loài. Một giống dù ít mẫu nếu bị đoán sai vẫn kéo tụt Macro F1 ngay lập tức.
 
 ### 4. Input & Output của Cell
@@ -343,12 +361,16 @@ Trong một hệ thống chuỗi $f(x) = g(h(x))$ trong đó $h(x)$ là Detector
 - Điểm số của Pipeline thực tế: $S_Y = \text{Score}(g(h(x)))$.
 - Điểm số của mô hình lý tưởng: $S_O = \text{Score}(g(h^*(x)))$ với $h^*(x)$ là Ground Truth Bbox.
 Khoảng cách sai số do Bước A gây ra được định lượng trực tiếp bằng hiệu số:
-$$\Delta_{\text{Detector Loss}} = S_O - S_Y$$
+
+$$
+\Delta_{\text{Detector Loss}} = S_O - S_Y
+$$
+
 - **Ví dụ số thực tế:**
-  - Model O đạt: $\text{Accuracy}_{\text{Blackbox}} = 88.5\%$.
-  - Model Y đạt: $\text{Accuracy}_{\text{Blackbox}} = 84.8\%$.
-  - $\Delta_{\text{Detector Loss}} = 88.5\% - 84.8\% = 3.7\%$.
-  - **Ý nghĩa:** Bước A (YOLO) làm rơi rớt khoảng $3.7\%$ độ chính xác của toàn hệ thống do cắt lệch hoặc crop sát tai con vật.
+  - Model O đạt: $\text{Accuracy}_{\text{Blackbox}} = 0.885$ (tương đương 88.5%).
+  - Model Y đạt: $\text{Accuracy}_{\text{Blackbox}} = 0.848$ (tương đương 84.8%).
+  - Tổn thất do Bước A: $\Delta_{\text{Detector Loss}} = 0.885 - 0.848 = 0.037$ (tương đương 3.7%).
+  - **Ý nghĩa:** Bước A (YOLO) làm rơi rớt khoảng 3.7% độ chính xác của toàn hệ thống do cắt lệch hoặc crop sát tai con vật.
 
 ### 4. Input & Output của Cell
 - **Input:** Toạ độ Bbox của Oracle và YOLO cho toàn bộ tập `trainval`.
@@ -433,18 +455,33 @@ still_wrong = [k for k in err_y_indices if k in err_o_indices]
 Gọi không gian mẫu trên Eyeball Dev là $\Omega$ ($|\Omega| = 300$).  
 Gọi tập các mẫu đoán sai của Model Y là $E_Y \subset \Omega$, tập các mẫu đoán sai của Model O là $E_O \subset \Omega$.
 1. **Tập lỗi quy thuộc Bước A ($E_{\text{Step A}}$):**
-   $$E_{\text{Step A}} = E_Y \setminus E_O = \{i \in \Omega \mid i \in E_Y \text{ và } i \notin E_O\}$$
-   - *Logic chứng minh:* Khi được cấp Bbox hoàn hảo $h^*(x)$ từ Trimap, mô hình đoán đúng ($i \notin E_O$). Nhưng khi dùng Bbox từ YOLO thì lại đoán sai ($i \in E_Y$). Suy ra $100\%$ nguyên nhân gây sai là do Bbox của Bước A bị lỗi!
+
+$$
+E_{\text{Step A}} = E_Y \setminus E_O = \{i \in \Omega \mid i \in E_Y, \ i \notin E_O\}
+$$
+
+   - *Logic chứng minh:* Khi được cấp Bbox hoàn hảo $h^*(x)$ từ Trimap, mô hình đoán đúng ($i \notin E_O$). Nhưng khi dùng Bbox từ YOLO thì lại đoán sai ($i \in E_Y$). Suy ra 100% nguyên nhân gây sai là do Bbox của Bước A bị lỗi!
 2. **Tập lỗi quy thuộc Bước B ($E_{\text{Step B}}$):**
-   $$E_{\text{Step B}} = E_Y \cap E_O = \{i \in \Omega \mid i \in E_Y \text{ và } i \in E_O\}$$
+
+$$
+E_{\text{Step B}} = E_Y \cap E_O = \{i \in \Omega \mid i \in E_Y, \ i \in E_O\}
+$$
+
    - *Logic chứng minh:* Ngay cả khi được cung cấp Bbox hoàn hảo, mô hình vẫn đoán sai. Suy ra Bbox không phải là nguyên nhân, mà lỗi thuần túy nằm ở năng lực phân loại đặc trưng của Bước B.
 
 #### Công thức tỷ lệ phần trăm phân bổ:
-$$P(\text{Lỗi do Bước A}) = \frac{|E_{\text{Step A}}|}{|E_Y|} = \frac{|E_Y \setminus E_O|}{|E_Y|}$$
-$$P(\text{Lỗi do Bước B}) = \frac{|E_{\text{Step B}}|}{|E_Y|} = \frac{|E_Y \cap E_O|}{|E_Y|}$$
+
+$$
+\text{Ratio}_{\text{Step A}} = \frac{|E_{\text{Step A}}|}{|E_Y|} = \frac{|E_Y \setminus E_O|}{|E_Y|}
+$$
+
+$$
+\text{Ratio}_{\text{Step B}} = \frac{|E_{\text{Step B}}|}{|E_Y|} = \frac{|E_Y \cap E_O|}{|E_Y|}
+$$
+
 - **Quy tắc ra quyết định chiến lược của Andrew Ng:**
-  - Nếu $P(\text{Bước A}) > 35\%$: Nút thắt cổ chai nằm ở Detector. Tập trung tinh chỉnh Bước A (mở rộng lề crop, chỉnh ngưỡng).
-  - Nếu $P(\text{Bước B}) > 65\%$: Detector đã làm tốt. Tập trung toàn bộ nguồn lực cải tiến Classifier (Data Augmentation, Backbone mạnh hơn).
+  - Nếu $\text{Ratio}_{\text{Step A}} > 0.35$ (tức > 35%): Nút thắt cổ chai nằm ở Detector. Tập trung tinh chỉnh Bước A (mở rộng lề crop, chỉnh ngưỡng).
+  - Nếu $\text{Ratio}_{\text{Step B}} > 0.65$ (tức > 65%): Detector đã làm tốt. Tập trung toàn bộ nguồn lực cải tiến Classifier (Data Augmentation, Backbone mạnh hơn).
 
 ### 4. Input & Output của Cell
 - **Input:** `preds_y_eye`, `preds_o_eye`, `labels_eye`.
@@ -473,19 +510,31 @@ for tag, count in tag_counts.most_common():
 Gọi $n = 100$ là số lượng mẫu sai được chọn ngẫu nhiên đồng đều từ tổng số $E_{\text{total}}$ mẫu sai trên Eyeball Dev ($N_{\text{eyeball}} = 300$).  
 Gọi $k_T$ là số lần xuất hiện của nhãn lỗi $T$ trong $n$ mẫu.
 1. **Tỷ lệ của nhóm lỗi $T$ trong tập lỗi:**
-   $$\hat{p}_T = \frac{k_T}{n}$$
-2. **Số lượng mẫu ước tính mắc lỗi $T$ trên toàn bộ Eyeball Dev:**
-   $$\widehat{\text{Count}}_T = \hat{p}_T \times E_{\text{total}} = \frac{k_T}{n} \times E_{\text{total}}$$
-3. **Mức trần tăng độ chính xác tối đa (Accuracy Ceiling Gain):**
-   $$\text{Ceiling Gain}(T) = \frac{\widehat{\text{Count}}_T}{N_{\text{eyeball}}} \times 100\% = \frac{\frac{k_T}{n} \times E_{\text{total}}}{N_{\text{eyeball}}} \times 100\%$$
 
-- **Ví dụ số thực tế:**
+$$
+\hat{p}_T = \frac{k_T}{n}
+$$
+
+2. **Số lượng mẫu ước tính mắc lỗi $T$ trên toàn bộ Eyeball Dev:**
+
+$$
+\widehat{\text{Count}}_T = \hat{p}_T \times E_{\text{total}} = \frac{k_T}{n} \times E_{\text{total}}
+$$
+
+3. **Mức trần tăng độ chính xác tối đa (Accuracy Ceiling Gain):**
+
+$$
+\text{Ceiling Gain}(T) = \frac{\widehat{\text{Count}}_T}{N_{\text{eyeball}}} \times 100 = \frac{\frac{k_T}{n} \times E_{\text{total}}}{N_{\text{eyeball}}} \times 100
+$$
+(Đơn vị tính: điểm phần trăm %).
+
+- **Ví dụ số thực tế:**  
   Giả sử trên tập Eyeball Dev có $E_{\text{total}} = 45$ ảnh bị đoán sai trên tổng số $N_{\text{eyeball}} = 300$ ảnh.  
-  Trong $n = 45$ ảnh sai đem phân tích, có $k_{\text{mờ}} = 15$ ảnh bị nhãn `"mờ"`:
-  - $\hat{p}_{\text{mờ}} = \frac{15}{45} \approx 33.3\%$.
-  - $\widehat{\text{Count}}_{\text{mờ}} = 33.3\% \times 45 = 15$ ảnh.
-  - $\text{Ceiling Gain}(\text{mờ}) = \frac{15}{300} \times 100\% = 5.0\%$.
-  - **Ý nghĩa:** Nếu ta viết thêm module khử mờ hoàn hảo 100%, độ chính xác toàn hệ thống tối đa chỉ tăng thêm **5.0%** (từ $85.0\% \to 90.0\%$), không thể tăng hơn. Kỹ sư dựa vào bảng xếp hạng này để ưu tiên xử lý lỗi nào có trần cao nhất.
+  Trong $n = 45$ ảnh sai đem phân tích, có $k_{\text{blur}} = 15$ ảnh bị nhãn `"mờ"`:
+  - Tỷ lệ nhóm mờ: $\hat{p}_{\text{blur}} = \frac{15}{45} \approx 0.333$ (khoảng 33.3%).
+  - Số lượng ảnh mờ ước tính: $\widehat{\text{Count}}_{\text{blur}} = 0.333 \times 45 = 15$ ảnh.
+  - Mức trần tăng độ chính xác: $\text{Ceiling Gain}(\text{blur}) = \frac{15}{300} \times 100 = 5.0$ (tăng tối đa 5.0%).
+  - **Ý nghĩa:** Nếu ta viết thêm module khử mờ hoàn hảo 100%, độ chính xác toàn hệ thống tối đa chỉ tăng thêm **5.0%** (từ 85.0% lên 90.0%), không thể tăng hơn. Kỹ sư dựa vào bảng xếp hạng này để ưu tiên xử lý lỗi nào có trần cao nhất.
 
 ### 4. Input & Output của Cell
 - **Input:** File `error_table.csv`, tổng số lỗi `total_pipeline_errors`.
@@ -565,8 +614,14 @@ $$\Delta_{\text{Overfit}} = \text{Accuracy}(\text{Eyeball Dev}) - \text{Accuracy
   - Vì kỹ sư đã trực tiếp quan sát 100 ảnh lỗi của Eyeball Dev để tinh chỉnh augmentation/margin, mô hình có thể vô thức "quá khớp" vào tập này.
   - Blackbox Dev đóng vai trò biến kiểm soát độc lập (Hold-out Control Set).
   - **Tiêu chuẩn kiểm định:**
-    $$\Delta_{\text{Overfit}} \le 0.05 \ (5.0\%) \implies \text{Tổng quát hóa tốt (Low Variance)}$$
-    $$\Delta_{\text{Overfit}} > 0.05 \ (5.0\%) \implies \text{Có dấu hiệu Overfitting vào Eyeball Dev}$$
+
+$$
+\Delta_{\text{Overfit}} \le 0.05 \implies \text{Low Variance (Tổng quát hóa tốt)}
+$$
+
+$$
+\Delta_{\text{Overfit}} > 0.05 \implies \text{High Variance (Dấu hiệu Overfit vào Eyeball Dev)}
+$$
 
 ### 4. Input & Output của Cell
 - **Input:** Checkpoint tốt nhất, Dataset `ds_test` (3.669 ảnh).
@@ -599,13 +654,24 @@ top_confused = sorted(top_confused, key=lambda x: x[2], reverse=True)[:5]
 
 #### Ma trận Nhầm lẫn (Confusion Matrix) và Phép Triệt tiêu Đường chéo
 Ma trận nhầm lẫn $\mathbf{C} \in \mathbb{R}^{K \times K}$ ($K = 37$) có phần tử $C_{i, j}$ biểu diễn số lượng mẫu thuộc giống thật $i$ nhưng bị mô hình dự đoán thành giống $j$:
-$$C_{i, j} = \sum_{k=1}^{N_{\text{test}}} \mathbb{I}(y_k = i \text{ và } \hat{y}_k = j)$$
+
+$$
+C_{i, j} = \sum_{k=1}^{N_{\text{test}}} \mathbb{I}(y_k = i, \ \hat{y}_k = j)
+$$
+
 Trong đó $\mathbb{I}(\cdot)$ là hàm chỉ thị (Indicator function).
 - Các phần tử trên đường chéo chính $C_{i, i}$ ($i = j$) là các trường hợp **dự đoán đúng** ($TP_i$).
 - Phép triệt tiêu đường chéo:
-  $$\mathbf{C}' = \mathbf{C} - \text{diag}(\mathbf{C}) \iff C_{i, j}' = \begin{cases} 0 & \text{nếu } i = j \\ C_{i, j} & \text{nếu } i \neq j \end{cases}$$
+
+$$
+\mathbf{C}' = \mathbf{C} - \text{diag}(\mathbf{C}) \iff C_{i, j}' = \begin{cases} 0, & \text{if } i = j \\ C_{i, j}, & \text{if } i \neq j \end{cases}
+$$
+
 - Tìm cặp nhầm lẫn nghiêm trọng nhất:
-  $$(i^*, j^*) = \arg\max_{i \neq j} C_{i, j}'$$
+
+$$
+(i^*, j^*) = \arg\max_{i \neq j} C_{i, j}'
+$$
 - **Ý nghĩa thực tế:** Lập tức cô lập các cặp giống cận huyết có hoa văn hoặc cấu trúc khuôn mặt gần như trùng nhau trong không gian đặc trưng (ví dụ: `Bengal -> Egyptian Mau`, `Pug -> French Bulldog`).
 
 ### 4. Input & Output của Cell
@@ -649,7 +715,9 @@ def build_classifier_v3(num_classes=37):
 
 #### a. Tỷ lệ Khuếch đại Thông tin Điểm ảnh (Spatial Information Gain)
 So sánh giữa kích thước ảnh cũ $224 \times 224$ và kích thước ảnh mới $320 \times 320$:
-$$\text{Tỷ lệ diện tích} = \frac{320 \times 320}{224 \times 224} = \left(\frac{320}{224}\right)^2 = \left(\frac{10}{7}\right)^2 \approx 2.0408 \times$$
+$$
+\text{Area Ratio} = \frac{320 \times 320}{224 \times 224} = \left(\frac{320}{224}\right)^2 = \left(\frac{10}{7}\right)^2 \approx 2.0408
+$$
 - **Ý nghĩa toán học:** Mô hình nhận được **gấp 2.04 lần lượng điểm ảnh (pixel)**. Đối với các chi tiết siêu nhỏ như nếp nhăn trán của Pug, đốm viền móng chân của Birman hay hoa văn đốm báo của Bengal, độ phân giải cao ngăn ngừa hiện tượng mất thông tin do phép nội suy thu nhỏ (Bilinear downsampling).
 
 #### b. Không gian Biểu diễn Vector Đặc trưng Đa chiều (High-Dimensional Embedding Space)
@@ -668,8 +736,10 @@ $$\text{Tỷ lệ diện tích} = \frac{320 \times 320}{224 \times 224} = \left(
 ### Câu 1: Tại sao bài toán này bắt buộc phải dùng Macro F1 bên cạnh Accuracy?
 **Trả lời:**  
 Accuracy chỉ đo tỷ lệ đúng trên tổng thể, nên nếu mô hình đoán giỏi các giống đông mẫu nhưng đoán sai sạch các giống hiếm thì Accuracy vẫn cao (đánh lừa người làm mô hình). Macro F1 tính F1 riêng biệt cho từng giống rồi lấy trung bình cộng không trọng số:
-$$\text{Macro F1} = \frac{1}{37} \sum_{c=1}^{37} F1_c$$
-Điều này ép mô hình phải đối xử công bằng tuyệt đối giữa cả 37 giống loài (mỗi giống đóng góp đúng $1/37 \approx 2.7\%$).
+$$
+\text{Macro F1} = \frac{1}{37} \sum_{c=1}^{37} F1_c
+$$
+Điều này ép mô hình phải đối xử công bằng tuyệt đối giữa cả 37 giống loài (mỗi giống đóng góp đúng $1/37 \approx 0.027$ (khoảng 2.7%)).
 
 ---
 
@@ -683,7 +753,7 @@ Toán tử Laplace là đạo hàm bậc hai của ma trận ảnh ($\nabla^2 I$
 **Trả lời:**  
 Dựa trên phương pháp bóc tách thành phần đối chứng với Oracle (Trimap Bbox):
 - Xét các ảnh mà Pipeline thực tế (Model Y) đoán sai:
-  - Nếu đưa Bbox hoàn hảo của Trimap vào mà mô hình đoán **đúng** $\implies$ Lỗi $100\%$ do Bước A cắt lệch/cắt cụt.
+  - Nếu đưa Bbox hoàn hảo của Trimap vào mà mô hình đoán **đúng** $\implies$ Lỗi 100% do Bước A cắt lệch/cắt cụt.
   - Nếu đưa Bbox hoàn hảo vào mà mô hình **vẫn đoán sai** $\implies$ Lỗi thuộc về Bước B (bộ phân loại không nhận diện được giống).
 
 ---
@@ -691,14 +761,17 @@ Dựa trên phương pháp bóc tách thành phần đối chứng với Oracle 
 ### Câu 4: Công thức tính Trần cải thiện (Ceiling Analysis) ở Task 8 có ý nghĩa thực tế như thế nào?
 **Trả lời:**  
 Công thức:
-$$\text{Ceiling Gain} = \frac{\frac{\text{Count}(T)}{n} \times E_{\text{total}}}{N_{\text{dev}}} \times 100\%$$
+$$
+\text{Ceiling Gain} = \frac{\frac{\text{Count}(T)}{n} \times E_{\text{total}}}{N_{\text{dev}}} \times 100
+$$
+(Đơn vị tính: %)
 Nó đo lường mức tăng độ chính xác tối đa nếu loại bỏ triệt để một nhóm lỗi. Kỹ sư không làm việc theo cảm tính mà dựa vào bảng trần này: nhóm lỗi nào có trần cao nhất (ví dụ giống tương tự tăng được 4.5%, trong khi ảnh tối chỉ tăng được 0.8%) thì tập trung thời gian giải quyết nhóm đó trước để tối ưu hóa nguồn lực.
 
 ---
 
 ### Câu 5: Tại sao tổng các Ceiling Gain ở Task 8 cộng lại có thể vượt quá 100%?
 **Trả lời:**  
-Vì đây là bài toán **đa nhãn (Multi-label)**, các nhóm lỗi không loại trừ lẫn nhau (Non-mutually exclusive). Một bức ảnh hoàn toàn có thể đồng thời vừa bị `"mờ"`, vừa bị `"tối"`, vừa bị `"che khuất"`. Do đó, khi tính riêng lẻ từng loại, các phần giao nhau được tính lặp lại khiến tổng vượt quá $100\%$.
+Vì đây là bài toán **đa nhãn (Multi-label)**, các nhóm lỗi không loại trừ lẫn nhau (Non-mutually exclusive). Một bức ảnh hoàn toàn có thể đồng thời vừa bị `"mờ"`, vừa bị `"tối"`, vừa bị `"che khuất"`. Do đó, khi tính riêng lẻ từng loại, các phần giao nhau được tính lặp lại khiến tổng vượt quá 100%.
 
 ---
 
@@ -711,8 +784,10 @@ Label Smoothing biến đổi nhãn cứng one-hot $[0, 1, 0, \dots]$ thành nh�
 ### Câu 7: Khái niệm "Human Overfitting" ở Task 10 là gì và làm sao để phát hiện?
 **Trả lời:**  
 Human Overfitting xảy ra khi kỹ sư soi bằng mắt 100 ảnh lỗi của Eyeball Dev rồi vô thức thiết kế các bộ luật/augmentation để "chiều lòng" 100 ảnh đó, khiến mô hình chỉ giỏi trên Eyeball Dev mà kém ở dữ liệu thực tế. Ta phát hiện bằng cách đo khoảng cách Overfitting Gap với tập Blackbox Dev (tập chưa từng được soi bằng mắt):
-$$\Delta_{\text{Overfit}} = \text{Accuracy}(\text{Eyeball}) - \text{Accuracy}(\text{Blackbox})$$
-Nếu $\Delta_{\text{Overfit}} \le 5\%$, mô hình an toàn, tổng quát hóa tốt.
+$$
+\Delta_{\text{Overfit}} = \text{Accuracy}(\text{Eyeball}) - \text{Accuracy}(\text{Blackbox})
+$$
+Nếu $\Delta_{\text{Overfit}} \le 0.05$ (tức $\le 5$%), mô hình an toàn, tổng quát hóa tốt.
 
 ---
 
